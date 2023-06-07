@@ -3,13 +3,20 @@ package com.example.composetracing
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -17,12 +24,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.tracing.TracingInitializer
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.composetracing.ui.theme.ComposeTracingTheme
@@ -35,70 +40,27 @@ class MainActivity : ComponentActivity() {
                 // A surface container using the 'background' color from the theme
 
                 val mainViewModel = hiltViewModel<MainViewModel>()
-                val items by mainViewModel.uiItemsList.collectAsStateWithLifecycle()
+                val uiItems by mainViewModel.uiItemsList.collectAsStateWithLifecycle()
+                val modifierInstance = remember { Modifier }
+                val listState = rememberLazyListState()
+                val currentItem by mainViewModel.currentItem.collectAsStateWithLifecycle()
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
                     ) {
                         items(
-                            items,
-                            key = { it.value }
+                            uiItems,
                         ) {
-                            
-                            
-                            val rememberedShuffle by rememberUpdatedState(mainViewModel::shuffleInt)
-                            
-                            val rememberItemState by remember {
-                                derivedStateOf { it }
-                            }
-
-                            val rememberCallBack by remember {
-                                derivedStateOf { mainViewModel::shuffle }
-                            }
-
-                            val rememberIntCallBack by remember {
-                                derivedStateOf { mainViewModel::shuffleInt }
-                            }
-                            
-                            val rememberThis by remember {
-                                derivedStateOf { mainViewModel.shuffle() }
-                            }
-
-                            ItemView(
-                                item = rememberItemState,
-                                clickCallback = rememberedShuffle
+                            UIItemView(
+                                uiItem = it,
+                                isCurrent = { it == currentItem },
+                                /*onClick = { clicked -> onClickCallBack(clicked) },*/
+                                /*shuffle = { mainViewModel.shuffleMe(it.value) },*/
                             )
-
-                            /*ItemView(
-                                item = rememberItemState,
-                                clickCallback = rememberIntCallBack,
-                            )*/
-
-                            /*ItemView(
-                                item = { rememberItemState },
-                                clickCallback = { mainViewModel.shuffle() }
-                            )*/
-
-                            /*ItemView(
-                                item = { it },
-                                // clickCallback = { mainViewModel.shuffle() }
-                            )*/
-
-                            /*Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = it.value.toString())
-                                TextButton(
-                                    onClick = { mainViewModel.shuffle() }
-                                ) {
-                                    Text(text = "Shuffle")
-                                }
-                            }*/
                         }
                     }
                 }
@@ -107,57 +69,130 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
 @Composable
-fun ItemView(
+fun ABad(
     item: UIItem,
-    clickCallback: () -> Unit = {}
+    itemsSize: Int
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = item.value.toString())
-        TextButton(
-            onClick = { clickCallback() }
-        ) {
-            Text(text = "Shuffle")
-        }
+        UIItemView(uiItem = item)
+        BBad(itemsSize)
     }
 }
 
 @Composable
-fun ItemView(
+fun BBad(itemsSize: Int) {
+    if (itemsSize % 2 == 0) Text("Even")
+    else Text("Odd")
+}
+
+@Composable
+fun AGood(
     item: UIItem,
-    clickCallback: (Int) -> Unit = {},
+    itemsSize: () -> Int
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = item.value.toString())
-        TextButton(
-            onClick = { clickCallback(item.value) }
-        ) {
-            Text(text = "Shuffle")
-        }
+        UIItemView(uiItem = item)
+        BGood(itemsSize)
     }
 }
 
 @Composable
-fun ItemView(
-    item: () -> UIItem,
-    clickCallback: () -> Unit = {}
+fun BGood(itemsSize: () -> Int) {
+    if (itemsSize() % 2 == 0) Text("Even")
+    else Text("Odd")
+}
+
+@Composable
+fun UIItemView(
+    uiItem: UIItem,
+    isCurrent: () -> Boolean = { false },
+    /*onClick: () -> Unit = {},
+    shuffle: () -> Unit = {},*/
+) {
+    val text by remember {
+        derivedStateOf {
+            if (isCurrent()) "Current"
+            else "Not current"
+        }
+    }
+
+    Row(
+        /*modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                shuffle()
+                onClick()
+            }*/
+    ) {
+        Text(uiItem.value.toString())
+        Text(text)
+    }
+
+    Divider(modifier = Modifier.fillMaxWidth())
+}
+
+@Composable
+fun LazyItemScope.ItemViewWithModifier(
+    modifier: Modifier = Modifier,
+    item: UIItem,
+    clickCallback: () -> Unit = {},
+    onItemClick: () -> Unit = {},
+    currentItem: UIItem? = null,
+    isThisCurrentNoLambda: Boolean = false,
+    isThisCurrent: () -> Boolean = { false },
+) {
+    ItemComposable(
+        modifier = modifier,
+        item = item,
+        clickCallback = clickCallback,
+        onItemClick = onItemClick,
+        currentItem = currentItem,
+        isThisCurrent = isThisCurrent,
+        isThisCurrentNoLambda = isThisCurrentNoLambda,
+    )
+    Divider(modifier = modifier.fillMaxWidth())
+}
+
+@Composable
+fun ItemComposable(
+    modifier: Modifier = Modifier,
+    item: UIItem,
+    clickCallback: () -> Unit = {},
+    uselessVariable: Int = -1,
+    onItemClick: () -> Unit = {},
+    currentItem: UIItem? = null,
+    isThisCurrentNoLambda: Boolean = false,
+    isThisCurrent: () -> Boolean = { false },
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onItemClick() }
+            .alpha(
+                if (isThisCurrent()) 1f
+                else 0.5f
+            )
+        ,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = item().value.toString())
+        Text(text = item.value.toString())
         TextButton(
             onClick = clickCallback
         ) {
-            Text(text = "Shuffle")
+            Text(text = "Shuffle $uselessVariable")
         }
+        Icon(
+            imageVector =
+            if (item.value % 2 == 0) Icons.Filled.Favorite
+            else Icons.Filled.FavoriteBorder,
+            contentDescription = null,
+            modifier = Modifier
+                .scale(if (isThisCurrent()) 1.5f else 1f)
+        )
     }
 }
