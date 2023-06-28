@@ -11,6 +11,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -19,6 +21,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
+@Stable
 class MainViewModel @Inject constructor() : ViewModel() {
     private val _itemsList: MutableStateFlow<List<Int>> = MutableStateFlow(listOf(0))
 
@@ -27,7 +30,7 @@ class MainViewModel @Inject constructor() : ViewModel() {
 
     init {
         viewModelScope.launch {
-            while(_itemsList.value.size < 200) {
+            while(_itemsList.value.size < 40) {
                 _itemsList.value = _itemsList.value + listOf(_itemsList.value.max() + 1)
                 delay(100)
             }
@@ -55,6 +58,11 @@ class MainViewModel @Inject constructor() : ViewModel() {
 
     fun setCurrentItem(item: UIItem) {
         _currentItem.value = item
+    }
+
+    fun setCurrentItemAndShuffle(item: UIItem) {
+        _currentItem.value = item
+        _itemsList.value = _itemsList.value.shuffled()
     }
 
     fun isCurrent(item: UIItem) = _currentItem.value == item
